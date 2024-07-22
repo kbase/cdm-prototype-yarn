@@ -1,0 +1,72 @@
+version: '3'
+
+# This docker-compose is for developer convenience, not for running in production.
+
+services:
+
+  namenode:
+    image: apache/hadoop:3.3.6
+    hostname: namenode
+    command: ["hdfs", "namenode"]
+    ports:
+      - 9870:9870
+    environment:
+      - ENSURE_NAMENODE_DIR=/tmp/hadoop-root/dfs/name
+      - CORE-SITE.XML_fs.default.name=hdfs://namenode
+      - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
+      - HDFS-SITE.XML_dfs.namenode.rpc-address
+      - HDFS-SITE.XML_dfs.permissions.enabled=false
+      - HDFS-SITE.XML_dfs.replication=1
+
+  datanode:
+    image: apache/hadoop:3.3.6
+    command: ["hdfs", "datanode"]
+    environment:
+      - CORE-SITE.XML_fs.default.name=hdfs://namenode
+      - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
+      - HDFS-SITE.XML_dfs.namenode.rpc-address
+      - HDFS-SITE.XML_dfs.permissions.enabled=false
+      - HDFS-SITE.XML_dfs.replication=1
+
+  # See https://hub.docker.com/r/apache/hadoop
+  yarn-resourcemanager:
+    # Version in bitnami is 3.3.4, but there is no 3.3.4 dockerhub image
+    image: apache/hadoop:3.3.6
+    container_name: yarn-resourcemanager
+    command: ["yarn", "resourcemanager"]
+    ports:
+      - 8088:8088  # web ui
+    environment:
+      # HDFS config
+      - CORE-SITE.XML_fs.default.name=hdfs://namenode
+      - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
+      - HDFS-SITE.XML_dfs.namenode.rpc-address
+      - HDFS-SITE.XML_dfs.permissions.enabled=false
+      - HDFS-SITE.XML_dfs.replication=1
+
+  yarn-nodemanager:
+    # Version in bitnami is 3.3.4, but there is no 3.3.4 dockerhub image
+    image: apache/hadoop:3.3.6
+    container_name: yarn-nodemanager
+    command: ["yarn", "nodemanager"]
+    ports:
+      - 8042:8042  # web ui
+    environment:
+      - YARN-SITE.XML_yarn.resourcemanager.hostname=yarn-resourcemanager
+      # HDFS config
+      - CORE-SITE.XML_fs.default.name=hdfs://namenode
+      - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
+      - HDFS-SITE.XML_dfs.namenode.rpc-address
+      - HDFS-SITE.XML_dfs.permissions.enabled=false
+      - HDFS-SITE.XML_dfs.replication=1
+
+  spark-container:
+    image: bitnami/spark:3.5.1
+    container_name: spark-container
+    depends_on: 
+      - yarn-nodemanager
+    environment:
+      - YARN_RESOURCE_MANAGER_URL=http://yarn-resourcemanager:8032
+      - YARN_CONF_DIR=/opt/yarn/conf
+    volumes:
+      - ./conf/hadoop:/opt/yarn/conf
