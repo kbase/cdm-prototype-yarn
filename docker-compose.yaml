@@ -37,6 +37,12 @@ services:
     ports:
       - 8088:8088  # web ui
     environment:
+      # S3 config
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - CORE-SITE.XML_fs.s3a.path.style.access=true
+      - CORE-SITE.XML_fs.s3a.endpoint=http://minio:9002
+      - HADOOP_OPTIONAL_TOOLS=hadoop-aws
       # HDFS config
       - CORE-SITE.XML_fs.default.name=hdfs://namenode
       - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
@@ -53,12 +59,52 @@ services:
       - 8042:8042  # web ui
     environment:
       - YARN-SITE.XML_yarn.resourcemanager.hostname=yarn-resourcemanager
+      # S3 config
+      - AWS_ACCESS_KEY_ID=minio
+      - AWS_SECRET_ACCESS_KEY=minio123
+      - CORE-SITE.XML_fs.s3a.path.style.access=true
+      - CORE-SITE.XML_fs.s3a.endpoint=http://minio:9002
+      - HADOOP_OPTIONAL_TOOLS=hadoop-aws
       # HDFS config
       - CORE-SITE.XML_fs.default.name=hdfs://namenode
       - CORE-SITE.XML_fs.defaultFS=hdfs://namenode
       - HDFS-SITE.XML_dfs.namenode.rpc-address
       - HDFS-SITE.XML_dfs.permissions.enabled=false
       - HDFS-SITE.XML_dfs.replication=1
+
+  minio:
+    image: minio/minio
+    container_name: spark-minio
+    ports:
+      - "9002:9002"
+      # MinIO Console is available at http://localhost:9003
+      - "9003:9003"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    healthcheck:
+      # reference: https://github.com/rodrigobdz/docker-compose-healthchecks?tab=readme-ov-file#minio-release2023-11-01t18-37-25z-and-older
+      test: timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9002' || exit 1
+      interval: 1s
+      timeout: 10s
+      retries: 5
+    # Note there is no bucket by default
+    command: server --address 0.0.0.0:9002 --console-address 0.0.0.0:9003 /data
+
+  minio-create-bucket:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "
+      mc alias set minio http://minio:9002 minio minio123 &&
+      if ! mc ls minio/yarn 2>/dev/null; then
+        mc mb minio/yarn && echo 'Bucket yarn created'
+      else
+        echo 'bucket yarn already exists'
+      fi
+      "
 
   spark-container:
     image: bitnami/spark:3.5.1
@@ -67,6 +113,9 @@ services:
       - yarn-nodemanager
     environment:
       - YARN_RESOURCE_MANAGER_URL=http://yarn-resourcemanager:8032
+      - MINIO_URL=http://minio:9002
+      - MINIO_ACCESS_KEY=minio
+      - MINIO_SECRET_KEY=minio123
       - YARN_CONF_DIR=/opt/yarn/conf
     volumes:
       - ./conf/hadoop:/opt/yarn/conf
