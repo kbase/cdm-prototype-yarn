@@ -59,9 +59,23 @@ docker exec -it spark-container bash
 ./bin/spark-submit --class org.apache.spark.examples.SparkPi --master yarn --conf spark.hadoop.yarn.resourcemanager.hostname=yarn-resourcemanager --conf spark.hadoop.yarn.resourcemanager.address=yarn-resourcemanager:8032 --deploy-mode client examples/jars/spark-examples_2.12-3.5.1.jar 10
 ```
 
+=======
+### With S3
+
+#### Java
+
+```
+./bin/spark-submit --class org.apache.spark.examples.SparkPi --master yarn --conf spark.hadoop.yarn.resourcemanager.hostname=yarn-resourcemanager --conf spark.hadoop.yarn.resourcemanager.address=yarn-resourcemanager:8032 --conf spark.hadoop.fs.s3a.endpoint=http://minio:9002 --conf spark.hadoop.fs.s3a.access.key=minio --conf spark.hadoop.fs.s3a.secret.key=minio123 --conf spark.hadoop.fs.s3a.path.style.access=true --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem --conf spark.yarn.stagingDir=s3a://yarn --deploy-mode client examples/jars/spark-examples_2.12-3.5.1.jar 10
+```
+
+#### Python
+
+```
+./bin/spark-submit --master yarn --conf spark.hadoop.yarn.resourcemanager.hostname=yarn-resourcemanager --conf spark.hadoop.yarn.resourcemanager.address=yarn-resourcemanager:8032 --conf spark.hadoop.fs.s3a.endpoint=http://minio:9002 --conf spark.hadoop.fs.s3a.access.key=minio --conf spark.hadoop.fs.s3a.secret.key=minio123 --conf spark.hadoop.fs.s3a.path.style.access=true --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem --conf spark.yarn.stagingDir=s3a://yarn --deploy-mode client examples/src/main/python/pi.py 10
+```
+
 ## TODO
 
-* Add S3 setup
 * install python on YARN nodes
 * Switch to fair scheduler for YARN
 
