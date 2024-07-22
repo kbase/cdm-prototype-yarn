@@ -33,6 +33,11 @@ A very simplistic (for now) docker set up for YARN nodes. Configuration is minim
 * It seems to the author that the spark / hadoop ecosystem is designed for use by an interest's
   employees, not its users
 
+## OS notes:
+
+* The Hadoop containers don't seem to start correctly on Mac machines. Ubuntu linux works
+  normally.
+
 ## Hadoop container notes:
 
 * **namenode**: The HDFS metadata node, contains the filesystem metadata.
