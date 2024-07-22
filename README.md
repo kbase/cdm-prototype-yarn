@@ -33,7 +33,20 @@ A very simplistic (for now) docker set up for YARN nodes. Configuration is minim
 * It seems to the author that the spark / hadoop ecosystem is designed for use by an interest's
   employees, not its users
 
+## Hadoop container notes:
+
+* **namenode**: The HDFS metadata node, contains the filesystem metadata.
+* **datanode**: The HDFS data node, contains the file data.
+* **yarn-resourcemanager**: The YARN resource / job manager. Equivalent to the Spark master.
+* **yarn-nodemanager**: The YARN node / application manager. Equivalent to a Spark worker.
+
 ## Testing
+
+To test, `exec` into the spark container and run the commands for the setup you wish to test.
+
+```
+docker exec -it spark-container bash
+```
 
 ### With HDFS
 
