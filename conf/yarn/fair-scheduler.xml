@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<allocations>
+  <queue name="root">
+    <!--
+      The `drf` scheduling policy takes both CPU and memory into account as opposed to the
+      `fair` policy, which only takes memory into account 
+    -->
+    <schedulingPolicy>drf</schedulingPolicy>
+    <queue name="default">
+      <!--
+        The `drf` scheduling policy takes both CPU and memory into account as opposed to the
+        `fair` policy, which only takes memory into account 
+      -->
+      <!-- not sure if this is inherited from root or not -->
+      <schedulingPolicy>drf</schedulingPolicy>
+    </queue>
+  </queue>
+</allocations>
