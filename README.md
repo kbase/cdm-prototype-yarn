@@ -75,6 +75,5 @@ docker exec -it spark-container bash
 
 ## TODO
 
-* install python on YARN nodes
 * Switch to fair scheduler for YARN
 
