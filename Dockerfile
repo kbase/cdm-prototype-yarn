@@ -64,7 +64,13 @@ ENV YARN-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_fi
 ENV CORE-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_file
 ENV HDFS-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_file
 
-# enable s3
+# Enable the fair scheduler. There are lots of config options, see
+# https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/FairScheduler.html
+ENV YARN-SITE.XML_yarn.resourcemanager.scheduler.class=org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler
+ENV YARN-SITE.XML_yarn.scheduler.fair.allocation.file=/opt/hadoop/fair-scheduler.xml
+COPY ./conf/yarn/fair-scheduler.xml /opt/hadoop/fair-scheduler.xml
+
+# Enable s3
 ENV HADOOP_OPTIONAL_TOOLS=hadoop-aws
 
 COPY ./scripts/ /opt/scripts/
