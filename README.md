@@ -59,7 +59,6 @@ docker exec -it spark-container bash
 ./bin/spark-submit --class org.apache.spark.examples.SparkPi --master yarn --conf spark.hadoop.yarn.resourcemanager.hostname=yarn-resourcemanager --conf spark.hadoop.yarn.resourcemanager.address=yarn-resourcemanager:8032 --deploy-mode client examples/jars/spark-examples_2.12-3.5.1.jar 10
 ```
 
-=======
 ### With S3
 
 #### Java
