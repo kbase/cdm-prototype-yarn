@@ -2,7 +2,48 @@ FROM apache/hadoop:3.3.6
 
 USER root
 
-# TODO install python
+# It might be worth making our own Dockerfile from scratch given the version of Centos is from
+# Dec 2018. docker history --no-trunc apache/hadoop:3.3.6 might help
+
+# Note that if the version of CentOS in the base image changes, this file may need updates to
+# match the version, or ideally can be removed.
+# https://serverfault.com/a/1161904
+COPY ./conf/yum/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo
+
+RUN mkdir -p /opt/temp
+WORKDIR /opt/temp
+
+# Installing openssl: https://gist.github.com/Bill-tran/5e2ab062a9028bf693c934146249e68c
+# Python: https://computingforgeeks.com/install-python-3-on-centos-rhel-7/
+# python version needs to match the version from https://github.com/kbase/cdm-jupyterhub/
+
+# do this in one command to minimize layer sizes
+RUN yum clean all \
+    && yum makecache fast \
+    && yum -y update \
+    && yum -y install epel-release \
+    && yum -y install wget make cmake gcc bzip2-devel libffi-devel zlib-devel perl-core pcre-devel \
+    && yum -y groupinstall "Development Tools" \
+    && wget https://openssl.org/source/openssl-3.3.1.tar.gz \
+    && tar -xzvf openssl-3.3.1.tar.gz \
+    && cd openssl-3.3.1 \
+    && ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib no-shared zlib-dynamic \
+    && make \
+    && make install \
+    && cd .. \
+    && wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz \
+    && tar xvf Python-3.11.9.tgz \
+    && cd Python-3.11.9 \
+    && LDFLAGS="${LDFLAGS} -Wl,-rpath=/usr/local/openssl/lib" ./configure --with-openssl=/usr/local/openssl \
+    && make \
+    && make altinstall \
+    && cd ../.. \
+    && rm -R /opt/temp
+
+# For openssl
+ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
+
+RUN cd /usr/local/bin/ && ln -s python3.11 python3 && ln -s pip3.11 pip3
 
 # This is pretty fragile. If the configuration starts breaking this is one place to start debugging
 
@@ -29,6 +70,7 @@ ENV HADOOP_OPTIONAL_TOOLS=hadoop-aws
 COPY ./scripts/ /opt/scripts/
 RUN chmod a+x /opt/scripts/*.sh
 
+WORKDIR /opt/hadoop
 USER hadoop
 
 # This is the entrypoint from the hadoop container, buried in the history:
