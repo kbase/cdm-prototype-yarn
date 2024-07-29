@@ -33,11 +33,6 @@ A very simplistic (for now) docker set up for YARN nodes. Configuration is minim
 * It seems to the author that the spark / hadoop ecosystem is designed for use by an interest's
   employees, not its users
 
-## OS notes:
-
-* The Hadoop containers don't seem to start correctly on Mac machines. Ubuntu linux works
-  normally.
-
 ## Hadoop container notes:
 
 * **namenode**: The HDFS metadata node, contains the filesystem metadata.
@@ -72,8 +67,3 @@ docker exec -it spark-container bash
 ```
 ./bin/spark-submit --master yarn --conf spark.hadoop.yarn.resourcemanager.hostname=yarn-resourcemanager --conf spark.hadoop.yarn.resourcemanager.address=yarn-resourcemanager:8032 --conf spark.hadoop.fs.s3a.endpoint=http://minio:9002 --conf spark.hadoop.fs.s3a.access.key=minio --conf spark.hadoop.fs.s3a.secret.key=minio123 --conf spark.hadoop.fs.s3a.path.style.access=true --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem --conf spark.yarn.stagingDir=s3a://yarn --deploy-mode client examples/src/main/python/pi.py 10
 ```
-
-## TODO
-
-* Switch to fair scheduler for YARN
-

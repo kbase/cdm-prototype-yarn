@@ -1,49 +1,83 @@
-FROM apache/hadoop:3.3.6
+FROM apache/hadoop:3.3.6 as hadoop_image
+
+FROM ubuntu:24.04
+
+# The steps here were partially determined by looking at
+# docker history --no-trunc apache/hadoop:3.3.6
+
+ENV HADOOP_VER=3.3.6
+
+###
+# Install python, java & other necessary binaries
+###
+
+# ubuntu 24.04 LTS noble only has python3.12
+# the autoremove step is to remove the many dependencies, including python3.12, of SPC
+RUN apt update -y \
+    && apt install -y software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt update -y \
+    && apt install -y python3.11 openjdk-8-jre curl \
+    && apt autoremove -y --purge software-properties-common python3.12 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -s /usr/bin/python3.11 /usr/bin/python3
+
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre/
+
+###
+# Copy startup scripts from the hadoop image
+###
+
+# No idea where the source for this stuff lives
+COPY --from=hadoop_image /opt/envtoconf.py /opt/envtoconf.py
+COPY --from=hadoop_image /opt/transformation.py /opt/transformation.py
+COPY --from=hadoop_image /opt/starter.sh /opt/starter.sh
+
+###
+# Move sudo command from /opt/starter.sh here
+###
+
+# Comment from script: To avoid docker volume permission problems
+RUN mkdir -p /data && chmod o+rwx /data
+
+# remove the line from the script. There are other sudos in `if` blocks, cross that bridge later
+RUN sed -i 's$sudo chmod o+rwx /data$# sudo chmod o+rwx /data$' /opt/starter.sh
+
+###
+# Set up hadoop user
+###
+
+RUN groupadd --gid 1001 hadoop \
+    && useradd --uid 1001 hadoop --gid 1001 --home /opt/hadoop \
+    && chown -R hadoop:hadoop /opt
+
+USER hadoop
+
+###
+# Install hadoop
+###
+
+WORKDIR /opt
+
+RUN curl -LSs -o hadoop.tgz https://dlcdn.apache.org/hadoop/common/hadoop-$HADOOP_VER/hadoop-$HADOOP_VER.tar.gz \
+    && tar zxf hadoop.tgz \
+    && rm hadoop.tgz \
+    && mv hadoop* hadoop \
+    && rm -r /opt/hadoop/share/doc  # 0.5GB of docs
 
 USER root
+RUN mkdir -p /var/log/hadoop && chmod 1777 /var/log/hadoop
+USER hadoop
 
-# It might be worth making our own Dockerfile from scratch given the version of Centos is from
-# Dec 2018. docker history --no-trunc apache/hadoop:3.3.6 might help
+ENV HADOOP_HOME=/opt/hadoop
+ENV HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+ENV HADOOP_LOG_DIR=/var/log/hadoop
+ENV PATH=$PATH:/opt/hadoop/bin
 
-# Note that if the version of CentOS in the base image changes, this file may need updates to
-# match the version, or ideally can be removed.
-# https://serverfault.com/a/1161904
-COPY ./conf/yum/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo
-
-RUN mkdir -p /opt/temp
-WORKDIR /opt/temp
-
-# Installing openssl: https://gist.github.com/Bill-tran/5e2ab062a9028bf693c934146249e68c
-# Python: https://computingforgeeks.com/install-python-3-on-centos-rhel-7/
-# python version needs to match the version from https://github.com/kbase/cdm-jupyterhub/
-
-# do this in one command to minimize layer sizes
-RUN yum clean all \
-    && yum makecache fast \
-    && yum -y update \
-    && yum -y install epel-release \
-    && yum -y install wget make cmake gcc bzip2-devel libffi-devel zlib-devel perl-core pcre-devel \
-    && yum -y groupinstall "Development Tools" \
-    && wget https://openssl.org/source/openssl-3.3.1.tar.gz \
-    && tar -xzvf openssl-3.3.1.tar.gz \
-    && cd openssl-3.3.1 \
-    && ./config --prefix=/usr --openssldir=/etc/ssl --libdir=lib no-shared zlib-dynamic \
-    && make \
-    && make install \
-    && cd .. \
-    && wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz \
-    && tar xvf Python-3.11.9.tgz \
-    && cd Python-3.11.9 \
-    && LDFLAGS="${LDFLAGS} -Wl,-rpath=/usr/local/openssl/lib" ./configure --with-openssl=/usr/local/openssl \
-    && make \
-    && make altinstall \
-    && cd ../.. \
-    && rm -R /opt/temp
-
-# For openssl
-ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
-
-RUN cd /usr/local/bin/ && ln -s python3.11 python3 && ln -s pip3.11 pip3
+###
+# Hack the environmental config system because it's annoying
+###
 
 # This is pretty fragile. If the configuration starts breaking this is one place to start debugging
 
@@ -58,27 +92,39 @@ RUN cd /usr/local/bin/ && ln -s python3.11 python3 && ln -s pip3.11 pip3
 # so that we can preload them with the environment we want.
 RUN sed -i -z 's#if name not in self\.configurables\.keys.*myfile.write("")##' /opt/envtoconf.py
 
+RUN sed -i 's#/usr/bin/python#/usr/bin/python3#' /opt/envtoconf.py
+
 # This is a hack to get the hadoop environment configuration code to run on the raw configuration
 # files regardless of whether there's a config var set that triggers that file
 ENV YARN-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_file
 ENV CORE-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_file
 ENV HDFS-SITE.XML_fakekey=hack_to_get_config_system_to_process_the_raw_config_file
 
-# Enable the fair scheduler. There are lots of config options, see
+###
+# Enable the fair scheduler
+###
+
+# There are lots of config options, see
 # https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/FairScheduler.html
 ENV YARN-SITE.XML_yarn.resourcemanager.scheduler.class=org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler
 ENV YARN-SITE.XML_yarn.scheduler.fair.allocation.file=/opt/hadoop/fair-scheduler.xml
 COPY ./conf/yarn/fair-scheduler.xml /opt/hadoop/fair-scheduler.xml
 
+###
 # Enable s3
+###
+
 ENV HADOOP_OPTIONAL_TOOLS=hadoop-aws
 
-COPY ./scripts/ /opt/scripts/
-RUN chmod a+x /opt/scripts/*.sh
+###
+# Finish the build
+###
 
-WORKDIR /opt/hadoop
+COPY ./scripts/ /opt/scripts/
+USER root
+RUN chmod a+x /opt/scripts/*.sh
 USER hadoop
 
-# This is the entrypoint from the hadoop container, buried in the history:
-# ENTRYPOINT ["/usr/local/bin/dumb-init" "--" "/opt/starter.sh"]
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "/opt/scripts/entrypoint.sh"]
+WORKDIR /opt/hadoop
+
+ENTRYPOINT ["/opt/scripts/entrypoint.sh"]

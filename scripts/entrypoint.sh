@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Setup S3 config and translate from the env var names we've chosen in the KBase spark
 # cluster to Hadoop-ese
