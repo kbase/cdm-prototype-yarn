@@ -117,6 +117,21 @@ COPY ./conf/yarn/fair-scheduler.xml /opt/hadoop/fair-scheduler.xml
 ENV HADOOP_OPTIONAL_TOOLS=hadoop-aws
 
 ###
+# Enable hardware capability detection (memory, CPU)
+###
+
+ENV YARN-SITE.XML_yarn.nodemanager.resource.detect-hardware-capabilities=true
+ENV YARN-SITE.XML_yarn.nodemanager.resource.count-logical-processors-as-cores=true
+
+# Not sure if yarn.nodemanager.resource.pcores-vcores-multiplier needs to be set, seems like
+# the yarn code should be able to figure it out
+
+# Currently resource limits are used only to determine whether to add a job to a node based on the
+# requested resources. Once the job is running it might take up more resources than requested.
+# If we find this to be a problem we can look into YARN's ability to kill jobs overusing resources:
+# https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/NodeManagerCGroupsMemory.html
+
+###
 # Finish the build
 ###
 
