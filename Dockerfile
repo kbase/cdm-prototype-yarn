@@ -1,4 +1,4 @@
-FROM apache/hadoop:3.3.6 as hadoop_image
+FROM apache/hadoop:3.4.0 as hadoop_image
 
 FROM ubuntu:24.04
 
