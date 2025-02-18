@@ -138,6 +138,8 @@ ENV YARN-SITE.XML_yarn.nodemanager.resource.count-logical-processors-as-cores=tr
 COPY ./scripts/ /opt/scripts/
 USER root
 RUN chmod a+x /opt/scripts/*.sh
+# Set permissions for /tmp as it will be mounted to external storage in Rancher
+RUN chmod -R 1777 /tmp
 USER hadoop
 
 WORKDIR /opt/hadoop

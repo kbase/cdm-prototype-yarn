@@ -32,7 +32,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: yarn-resourcemanager
+    platform: linux/amd64
     ports:
       - 8088:8088  # web ui
     environment:
@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: yarn-nodemanager
+    platform: linux/amd64
     ports:
       - 8042:8042  # web ui
     environment:
@@ -71,7 +71,6 @@ services:
 
   minio:
     image: minio/minio
-    container_name: spark-minio
     ports:
       - "9002:9002"
       # MinIO Console is available at http://localhost:9003
